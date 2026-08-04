@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import sys
@@ -12,20 +11,7 @@ from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
-from config import CITY_MAP, TOP3_IDS, TOP3_NAMES, FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH
-
-
-def load_records(path):
-    rows = []
-    if not os.path.exists(path):
-        return rows
-    with open(path, "r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            try:
-                rows.append((row["date"], row["time"], int(row["city_id"]), row.get("city_name", "")))
-            except (KeyError, ValueError):
-                continue
-    return sorted(rows, key=lambda r: (r[0], r[1]))
+from config import TOP3_IDS, TOP3_NAMES, FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH
 
 
 def _read_log():
@@ -65,7 +51,9 @@ def _reflect(items):
             s = stats[city]
             p = float(result.get("final_probability", result.get("probability", 0.0)))
             y = int(result.get("actual", 0))
-            gap = result.get("gap_before_hit")
+            # 反思应按“预测发生时的当前间隔”分组。命中后再计算的间隔会在
+            # 命中城市上归零，导致所有命中样本错误集中到 0-10 档。
+            gap = result.get("gap_before_prediction", result.get("gap"))
             s["n"] += 1
             s["hits"] += y
             s["sum_pred"] += p
@@ -98,18 +86,28 @@ def adaptive_weights(summary):
     return weights
 
 
-def record_and_resolve(records, predictions, now=None):
-    """Resolve pending snapshots against the next real record, then append current snapshot."""
-    now = now or datetime.now()
-    items = _read_log()
+def _build_summary(items, now):
+    city_summary = _reflect(items)
+    weights = adaptive_weights(city_summary)
+    resolved_snapshots = sum(1 for item in items if item.get("status") == "resolved")
+    return {
+        "updated_at": now.isoformat(timespec="seconds"),
+        "resolved_snapshots": resolved_snapshots,
+        "resolved_samples": sum(v["n"] for v in city_summary.values()),
+        "weights": weights,
+        "cities": city_summary,
+    }
+
+
+def _write_summary(summary):
+    os.makedirs(os.path.dirname(FLYWHEEL_SUMMARY_PATH), exist_ok=True)
+    with open(FLYWHEEL_SUMMARY_PATH, "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
+
+def _resolve_items(items, records, now):
     cursor = len(records)
-    # 同一批原始记录只保留一个待结算快照，避免分钟刷新重复计样。
-    if items and items[-1].get("status") == "pending" and int(items[-1].get("record_cursor", -1)) == cursor:
-        summary = _reflect(items)
-        weights = adaptive_weights(summary)
-        with open(FLYWHEEL_SUMMARY_PATH, "w", encoding="utf-8") as f:
-            json.dump({"updated_at": now.isoformat(timespec="seconds"), "resolved_samples": sum(v["n"] for v in summary.values()), "weights": weights, "cities": summary}, f, ensure_ascii=False, indent=2)
-        return {"resolved_samples": sum(v["n"] for v in summary.values()), "weights": weights, "cities": summary}
+    changed = False
     for item in items:
         if item.get("status") != "pending" or cursor <= int(item.get("record_cursor", 0)):
             continue
@@ -125,7 +123,30 @@ def record_and_resolve(records, predictions, now=None):
         item["status"] = "resolved"
         item["resolved_at"] = now.isoformat(timespec="seconds")
         item["actual_record"] = {"date": next_row[0], "time": next_row[1], "city_id": next_row[2], "city_name": next_row[3]}
+        changed = True
+    return changed
 
+
+def resolve_pending(records, now=None):
+    """先结算上一轮快照，让最新真实结果参与本轮预测。"""
+    now = now or datetime.now()
+    items = _read_log()
+    if _resolve_items(items, records, now):
+        _write_log(items)
+    summary = _build_summary(items, now)
+    _write_summary(summary)
+    return summary
+
+
+def record_snapshot(records, predictions, now=None):
+    """保存当前预测；同一批原始记录只保留一个待结算快照。"""
+    now = now or datetime.now()
+    items = _read_log()
+    cursor = len(records)
+    if items and items[-1].get("status") == "pending" and int(items[-1].get("record_cursor", -1)) == cursor:
+        summary = _build_summary(items, now)
+        _write_summary(summary)
+        return summary
     snapshot = {"snapshot_id": now.isoformat(timespec="milliseconds"), "created_at": now.isoformat(timespec="seconds"), "record_cursor": cursor, "status": "pending", "cities": {}}
     for city_id in TOP3_IDS:
         city = TOP3_NAMES[city_id]
@@ -146,13 +167,17 @@ def record_and_resolve(records, predictions, now=None):
             "gap_before_prediction": _gap_before(records, cursor, city_id),
         }
     items.append(snapshot)
-    summary = _reflect(items)
-    weights = adaptive_weights(summary)
     _write_log(items)
-    os.makedirs(os.path.dirname(FLYWHEEL_SUMMARY_PATH), exist_ok=True)
-    with open(FLYWHEEL_SUMMARY_PATH, "w", encoding="utf-8") as f:
-        json.dump({"updated_at": now.isoformat(timespec="seconds"), "resolved_samples": sum(v["n"] for v in summary.values()), "weights": weights, "cities": summary}, f, ensure_ascii=False, indent=2)
-    return {"resolved_samples": sum(v["n"] for v in summary.values()), "weights": weights, "cities": summary}
+    summary = _build_summary(items, now)
+    _write_summary(summary)
+    return summary
+
+
+def record_and_resolve(records, predictions, now=None):
+    """兼容入口：先结算上一轮，再保存当前预测。"""
+    now = now or datetime.now()
+    resolve_pending(records, now)
+    return record_snapshot(records, predictions, now)
 
 
 if __name__ == "__main__":

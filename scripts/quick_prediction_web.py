@@ -6,9 +6,6 @@ from urllib.parse import urlparse
 from pathlib import Path
 import json
 import os
-import subprocess
-import sys
-import signal
 import time
 from zipfile import BadZipFile
 from datetime import datetime
@@ -20,9 +17,6 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
-SCRIPTS_DIR = BASE_DIR / "scripts"
-REFRESH_TIMEOUT = 90
-REFRESH_LOCK_PATH = BASE_DIR / "logs" / "minutely_refresh.lock"
 WEB_HEADER_MAP = {
     "目标": "目标",
     "当前间隔(手)": "当前间隔",
@@ -105,42 +99,6 @@ def load_quick_prediction():
     }
 
 
-def refresh_pipeline():
-    try:
-        lock_fd = os.open(REFRESH_LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
-        return {"error": "系统正在进行分钟刷新，请稍后再按刷新。"}
-    steps = [
-        ("采集", SCRIPTS_DIR / "collect_defense_data.py"),
-        ("校准", SCRIPTS_DIR / "calibrate_collected_data.py"),
-        ("日报", SCRIPTS_DIR / "daily_defense_summary.py"),
-    ]
-    logs = []
-    try:
-        os.close(lock_fd)
-        for label, script_path in steps:
-            try:
-                result = subprocess.run(
-                    [sys.executable, str(script_path)],
-                    cwd=str(BASE_DIR), capture_output=True, text=True, timeout=REFRESH_TIMEOUT,
-                )
-            except subprocess.TimeoutExpired:
-                return {"error": f"{label}超时，请稍后再试。", "logs": logs}
-            output = "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
-            logs.append({"step": label, "ok": result.returncode == 0, "output": output[-1200:]})
-            if result.returncode != 0:
-                return {"error": f"{label}失败。", "logs": logs}
-        payload = load_quick_prediction()
-        payload["logs"] = logs
-        payload["pipeline_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return payload
-    finally:
-        try:
-            REFRESH_LOCK_PATH.unlink()
-        except FileNotFoundError:
-            pass
-
-
 HTML = """<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -181,32 +139,6 @@ HTML = """<!doctype html>
     h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0.02em; }
     .sub { color: var(--muted); line-height: 1.6; font-size: 14px; }
     .toolbar { display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
-    button {
-      appearance: none;
-      border: 0;
-      background: var(--accent);
-      color: white;
-      padding: 11px 16px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-size: 14px;
-      box-shadow: 0 8px 18px rgba(29,78,216,0.25);
-    }
-    button:disabled { opacity: 0.65; cursor: wait; }
-    .auto-switch {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      color: var(--text);
-      user-select: none;
-      cursor: pointer;
-    }
-    .auto-switch input {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--accent);
-    }
     .meta { color: var(--muted); font-size: 13px; }
     .card {
       background: var(--panel);
@@ -252,11 +184,6 @@ HTML = """<!doctype html>
       <h1 id="title">快速预测</h1>
       <div class="sub" id="subtitle">正在读取最新日报...</div>
       <div class="toolbar">
-        <button id="refreshBtn">立即采集并刷新</button>
-        <label class="auto-switch">
-          <input id="autoRefresh" type="checkbox" />
-          <span>自动每分钟05秒读取最新结果</span>
-        </label>
         <div class="meta" id="status">等待加载</div>
       </div>
     </div>
@@ -271,8 +198,6 @@ HTML = """<!doctype html>
     <div class="footer">本地页面自动读取最新的 `defense_summary_*.xlsx`。</div>
   </div>
   <script>
-    const btn = document.getElementById('refreshBtn');
-    const autoRefresh = document.getElementById('autoRefresh');
     const title = document.getElementById('title');
     const subtitle = document.getElementById('subtitle');
     const statusEl = document.getElementById('status');
@@ -280,10 +205,6 @@ HTML = """<!doctype html>
     const tbody = document.getElementById('tbody');
     let autoTimer = null;
     let autoBusy = false;
-    let lastReportUpdatedAt = '';
-    const AUTO_REFRESH_MAX_WAIT_MS = 12000;
-    const AUTO_REFRESH_POLL_MS = 800;
-
     function renderTable(data) {
       thead.innerHTML = '';
       tbody.innerHTML = '';
@@ -320,9 +241,6 @@ HTML = """<!doctype html>
 
     function scheduleAutoRefresh() {
       clearAutoTimer();
-      if (!autoRefresh.checked) {
-        return;
-      }
       const now = new Date();
       const next = new Date(now);
       next.setSeconds(5, 0);
@@ -331,72 +249,47 @@ HTML = """<!doctype html>
       }
       const delay = next.getTime() - now.getTime();
       autoTimer = setTimeout(async () => {
-        if (!autoRefresh.checked) {
-          return;
-        }
         if (autoBusy) {
           scheduleAutoRefresh();
           return;
         }
         autoBusy = true;
         try {
-          await loadData(false, false, true);
+          // 页面只快速读取后台已生成的日报，绝不因等待采集而卡住。
+          await loadData(false, false, false);
         } finally {
           autoBusy = false;
           scheduleAutoRefresh();
         }
       }, delay);
-      statusEl.textContent = `自动刷新已开启，下次刷新时间：${next.toLocaleTimeString('zh-CN', { hour12: false })}`;
+      statusEl.textContent = `自动采集已开启，下次刷新时间：${next.toLocaleTimeString('zh-CN', { hour12: false })}`;
     }
 
-    async function fetchPayload(runPipeline = false) {
-      const endpoint = runPipeline ? '/api/refresh' : '/api/quick-prediction';
-      const res = await fetch(endpoint + '?ts=' + Date.now(), { cache: 'no-store' });
+    async function fetchPayload() {
+      const res = await fetch('/api/quick-prediction?ts=' + Date.now(), { cache: 'no-store' });
       return res.json();
     }
 
-    async function loadData(reschedule = true, runPipeline = false, waitForNewReport = false) {
-      btn.disabled = true;
-      statusEl.textContent = runPipeline ? '采集并刷新中...' : '读取中...';
+    async function loadData(reschedule = true) {
       try {
-        let data = await fetchPayload(runPipeline);
-        if (!runPipeline && waitForNewReport && lastReportUpdatedAt) {
-          const startedAt = Date.now();
-          while (!data.error && data.updated_at === lastReportUpdatedAt && Date.now() - startedAt < AUTO_REFRESH_MAX_WAIT_MS) {
-            statusEl.textContent = '等待新报表写入...';
-            await new Promise(resolve => setTimeout(resolve, AUTO_REFRESH_POLL_MS));
-            data = await fetchPayload(false);
-          }
-        }
+        const data = await fetchPayload();
         if (data.error) throw new Error(data.error);
         title.textContent = data.title || '快速预测';
         const refreshed = data.pipeline_updated_at ? ` · 采集完成: ${data.pipeline_updated_at}` : '';
         subtitle.textContent = `来源: ${data.report} · 报表时间: ${data.updated_at}${refreshed}`;
-        lastReportUpdatedAt = data.updated_at || lastReportUpdatedAt;
-        statusEl.textContent = '已更新';
         renderTable(data);
       } catch (err) {
-        statusEl.textContent = '加载失败';
         tbody.innerHTML = '<tr><td class="err" colspan="' + Math.max((thead.children || []).length, 1) + '">' + err.message + '</td></tr>';
       } finally {
-        btn.disabled = false;
-        if (reschedule && autoRefresh.checked) {
+        if (reschedule) {
           scheduleAutoRefresh();
         }
       }
     }
 
-    btn.addEventListener('click', () => loadData(true, true));
-    autoRefresh.addEventListener('change', () => {
-      if (autoRefresh.checked) {
-        scheduleAutoRefresh();
-        loadData();
-      } else {
-        clearAutoTimer();
-        statusEl.textContent = '自动刷新已关闭';
-      }
+    loadData().then(() => {
+      scheduleAutoRefresh();
     });
-    loadData();
   </script>
 </body>
 </html>
@@ -419,10 +312,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/quick-prediction":
             payload = load_quick_prediction()
-            self._send(json.dumps(payload, ensure_ascii=False), content_type="application/json; charset=utf-8")
-            return
-        if parsed.path == "/api/refresh":
-            payload = refresh_pipeline()
             self._send(json.dumps(payload, ensure_ascii=False), content_type="application/json; charset=utf-8")
             return
         self._send("Not Found", status=404)

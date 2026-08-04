@@ -16,7 +16,6 @@ from collect_defense_data import (
     process_report_minute,
     process_tower_data,
     append_tower_records,
-    get_last_tower_entry,
     update_gap_counter_from_records,
 )
 
@@ -27,7 +26,7 @@ def main() -> None:
     if report is None:
         raise RuntimeError("官网 API 请求失败，回补未执行")
     now = datetime.now()
-    tower_count = append_tower_records(process_tower_data(report, now), get_last_tower_entry())
+    tower_count = append_tower_records(process_tower_data(report, now))
     minute_count = process_report_minute(report, now)
     gaps = update_gap_counter_from_records()
     print(f"回补完成: tower补回{tower_count}条, minute补回{minute_count}条")

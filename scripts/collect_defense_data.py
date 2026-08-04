@@ -124,21 +124,7 @@ def process_tower_data(report_data, now=None):
     return records
 
 
-def get_last_tower_entry():
-    """读取tower CSV最后一条记录"""
-    if not os.path.exists(TOWER_CSV_PATH):
-        return None
-    last = None
-    with open(TOWER_CSV_PATH, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        header = next(reader, None)
-        for row in reader:
-            if len(row) >= 2:
-                last = (row[0], row[1])
-    return last
-
-
-def append_tower_records(records, last_entry):
+def append_tower_records(records):
     """按日期、分钟和城池独立去重，避免同一分钟漏掉其他城池。"""
     existing = set()
     if os.path.exists(TOWER_CSV_PATH):
@@ -270,8 +256,7 @@ def main():
 
         # 1. 处理 tower 数据（上三城间隔追踪）
         tower_records = process_tower_data(report_data, now)
-        last_tower = get_last_tower_entry()
-        new_tower = append_tower_records(tower_records, last_tower)
+        new_tower = append_tower_records(tower_records)
 
         # 2. 处理 report_minute（兼容历史）
         new_minute = process_report_minute(report_data, now)

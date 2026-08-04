@@ -90,7 +90,7 @@ from config import (
     FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH, ALERT_STATE_PATH,
     ALERT_TRIGGER_LEVEL,
 )
-from data_flywheel import record_and_resolve
+from data_flywheel import record_snapshot, resolve_pending
 from notification_utils import send_dual_channel_alert
 
 
@@ -322,20 +322,6 @@ def _log_gamma(x):
         ag += coef[i] / (x + i)
     t = x + g + 0.5
     return 0.5 * math.log(2 * math.pi) + (x + 0.5) * math.log(t) - t + math.log(ag)
-
-
-def sigmoid(x):
-    if x >= 0:
-        return 1.0 / (1.0 + math.exp(-x))
-    else:
-        exp_x = math.exp(x)
-        return exp_x / (1.0 + exp_x)
-
-
-def logit(p):
-    eps = 1e-7
-    p = max(eps, min(1 - eps, p))
-    return math.log(p / (1 - p))
 
 
 class NumpyStandardScaler:
@@ -2000,6 +1986,9 @@ def main():
             "models": experience_template,
         })
 
+        # 先用最新一手真实结果结算上一轮预测，使飞轮权重立即参与本轮计算。
+        resolve_pending(records)
+
         # Part3: 概率预测
         print("Part3: 计算当前预测...")
         gap_counter = load_json(GAP_COUNTER_PATH)
@@ -2010,8 +1999,8 @@ def main():
         calibration_model = fit_probability_calibrators(backtest)
         predictions = calibrate_predictions(predictions, calibration_model)
 
-        # 记录本次预测，并把已经出现的下一手真实结果回填到历史快照。
-        flywheel_summary = record_and_resolve(records, predictions)
+        # 保存本次预测，等待下一手真实记录结算。
+        flywheel_summary = record_snapshot(records, predictions)
         template_state = load_json(MODEL_UPDATE_TEMPLATE_PATH, {})
         template_state["flywheel_resolved_samples"] = flywheel_summary.get("resolved_samples", 0)
         template_state["flywheel_weights"] = flywheel_summary.get("weights", {})

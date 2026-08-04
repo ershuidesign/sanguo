@@ -16,6 +16,7 @@ LOG_DIR = BASE_DIR / "logs"
 LOG_PATH = LOG_DIR / "minutely_refresh.log"
 LOCK_PATH = LOG_DIR / "minutely_refresh.lock"
 BACKFILL_MARKER = LOG_DIR / "last_backfill_at.txt"
+STALE_LOCK_SECONDS = 90
 
 
 def seconds_until_next_half_second() -> float:
@@ -59,6 +60,15 @@ def refresh_once() -> bool:
     try:
         lock_fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
+        # 进程被异常中止时会遗留空锁；超过一轮刷新时间后可安全恢复。
+        try:
+            age = time.time() - LOCK_PATH.stat().st_mtime
+            if age > STALE_LOCK_SECONDS:
+                LOCK_PATH.unlink()
+                log("[RECOVER] 已清理超时刷新锁")
+                return refresh_once()
+        except FileNotFoundError:
+            return refresh_once()
         log("[SKIP] 上一次刷新仍在执行")
         return False
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -73,6 +83,7 @@ def refresh_once() -> bool:
                 log(output[-3000:])
             if ok:
                 BACKFILL_MARKER.write_text(now.isoformat(timespec="seconds"), encoding="utf-8")
+        all_ok = True
         for label, script_name in [
             ("采集", "collect_defense_data.py"),
             ("校准", "calibrate_collected_data.py"),
@@ -83,8 +94,10 @@ def refresh_once() -> bool:
             if output:
                 log(output[-3000:])
             if not ok:
-                return False
-        return True
+                # 单分钟网络故障不能阻断下一分钟；后续步骤继续使用最近一次有效数据。
+                all_ok = False
+                log(f"[{label}] 本轮失败，继续执行后续步骤和下一分钟刷新")
+        return all_ok
     finally:
         try:
             LOCK_PATH.unlink()
