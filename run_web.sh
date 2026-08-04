@@ -44,7 +44,7 @@ elif command -v launchctl >/dev/null 2>&1 && [ "$(uname)" = "Darwin" ]; then
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd "$PWD" && exec "$PYTHON_BIN" scripts/quick_prediction_web.py</string>
+    <string>cd "$PWD" && while true; do "$PYTHON_BIN" scripts/quick_prediction_web.py; sleep 1; done</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -70,7 +70,8 @@ EOF
   launchctl bootstrap "gui/$(id -u)" "$LAUNCHD_PLIST"
   launchctl kickstart -k "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || true
 else
-  nohup env QUICK_PREDICTION_HOST="$HOST" QUICK_PREDICTION_PORT="$PORT" python3 scripts/quick_prediction_web.py >> "$LOG_FILE" 2>&1 &
+  # Keep the local page alive when launched outside launchd/screen.
+  nohup bash -lc 'while true; do QUICK_PREDICTION_HOST="$1" QUICK_PREDICTION_PORT="$2" python3 scripts/quick_prediction_web.py >> "$3" 2>&1; sleep 1; done' _ "$HOST" "$PORT" "$LOG_FILE" >> "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
 fi
 
