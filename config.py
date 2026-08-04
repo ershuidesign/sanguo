@@ -261,3 +261,4 @@ MODEL_UPDATE_TEMPLATE_VERSION = 2
 WECHAT_SCTKEY = os.environ.get("WECHAT_SCTKEY", _NOTIFICATION_CONFIG.get("wechat_sctkey", "")).strip()
 BARK_PUSH_URL = os.environ.get("BARK_PUSH_URL", _NOTIFICATION_CONFIG.get("bark_push_url", "")).strip()
 ALERT_TRIGGER_LEVEL = "极高"
+ALERT_LOG_PATH = os.path.join(LOG_DIR, "notification_results.jsonl")

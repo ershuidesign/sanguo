@@ -89,7 +89,7 @@ from config import (
     BURST_LONG_GAP_THRESHOLD, BURST_WINDOW_HANDS, BURST_MIN_SAMPLES, BURST_MIN_LIFT,
     MODEL_UPDATE_TEMPLATE_VERSION,
     FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH, ALERT_STATE_PATH,
-    ALERT_TRIGGER_LEVEL,
+    ALERT_TRIGGER_LEVEL, ALERT_LOG_PATH,
 )
 from data_flywheel import record_snapshot, resolve_pending
 from notification_utils import send_dual_channel_alert
@@ -172,7 +172,7 @@ def build_alert_candidates(predictions):
 
 def should_send_alerts(candidates, state):
     if not candidates:
-        return False, "", []
+        return False, "no_extreme_candidate", []
     if (state or {}).get("waiting_for_hit"):
         return False, "waiting_for_top3_hit", []
     signature = "|".join(
@@ -182,6 +182,20 @@ def should_send_alerts(candidates, state):
     if (state or {}).get("last_signature") == signature:
         return False, signature, []
     return True, signature, candidates
+
+
+def append_notification_log(event, details=None):
+    os.makedirs(os.path.dirname(ALERT_LOG_PATH), exist_ok=True)
+    payload = {
+        "at": datetime.now().isoformat(timespec="seconds"),
+        "event": event,
+        **(details or {}),
+    }
+    try:
+        with open(ALERT_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
 
 
 def notify_extreme_predictions(predictions):
@@ -208,12 +222,16 @@ def notify_extreme_predictions(predictions):
             state["waiting_for_hit"] = False
             state["unlocked_at"] = datetime.now().isoformat(timespec="seconds")
             save_json(ALERT_STATE_PATH, state)
+            append_notification_log("unlocked_after_hit", {"alert_at": alert_at})
         else:
+            append_notification_log("blocked_waiting_for_hit", {"candidates": candidates})
             return {"sent": False, "reason": "waiting_for_top3_hit", "items": candidates}
 
     should_send, signature, alert_items = should_send_alerts(candidates, state)
     if not should_send:
-        return {"sent": False, "reason": "no_new_extreme_alert", "items": candidates}
+        reason = "no_extreme_candidate" if not candidates else "duplicate_extreme"
+        append_notification_log(reason, {"candidates": candidates, "signature": signature})
+        return {"sent": False, "reason": reason, "items": candidates}
 
     title = f"上三城极高预警 {datetime.now().strftime('%H:%M:%S')}"
     # 触发条件仍是任一上三城达到“极高”，但正文固定展示四项，
@@ -233,6 +251,7 @@ def notify_extreme_predictions(predictions):
     body = "\n".join(lines)
 
     results = send_dual_channel_alert(title, body)
+    append_notification_log("send_result", {"candidates": alert_items, "results": results})
     if any(result.get("ok") for result in results):
         save_json(ALERT_STATE_PATH, {
             "last_signature": signature,
