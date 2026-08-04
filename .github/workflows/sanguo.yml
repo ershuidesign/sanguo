@@ -1,0 +1,136 @@
+name: 斗鱼大话三国 - 定时采集与日报
+
+on:
+  schedule:
+    # 每小时第5分钟采集数据（UTC时间，北京时间 = UTC+8）
+    - cron: '5 * * * *'
+    # 每天北京时间23:00生成日报（UTC 15:00）
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    inputs:
+      task_type:
+        description: '任务类型：collect(采集) / report(日报)'
+        required: true
+        default: 'collect'
+        type: choice
+        options:
+          - collect
+          - report
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  # ============ 数据采集任务 ============
+  collect-data:
+    name: 数据采集
+    runs-on: ubuntu-latest
+    # 定时采集或手动触发采集
+    if: github.event.schedule == '5 * * * *' || github.event.inputs.task_type == 'collect'
+    
+    steps:
+    - name: Checkout 代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+        
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 执行数据采集
+      run: |
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始采集数据..."
+        python scripts/collect_defense_data.py
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] 采集完成"
+        
+    - name: 提交数据更新
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add data/
+        if git diff --staged --quiet; then
+          echo "没有新的数据更新"
+        else
+          git commit -m "🤖 Auto collect data - $(date '+%Y-%m-%d %H:%M')"
+          git push
+          echo "数据已提交"
+        fi
+        
+    - name: 失败通知
+      if: failure() && env.WECHAT_SCTKEY != ''
+      env:
+        WECHAT_SCTKEY: ${{ secrets.WECHAT_SCTKEY }}
+      run: |
+        curl -s -X POST "https://sctapi.ftqq.com/${{ env.WECHAT_SCTKEY }}.send" \
+          -d "title=⚠️ 三国数据采集失败" \
+          -d "desp=时间: $(date '+%Y-%m-%d %H:%M:%S')%0A%0A请检查 GitHub Actions 日志"
+
+  # ============ 日报生成任务 ============
+  daily-report:
+    name: 每日日报
+    runs-on: ubuntu-latest
+    # 定时日报或手动触发日报
+    if: github.event.schedule == '0 15 * * *' || github.event.inputs.task_type == 'report'
+    
+    steps:
+    - name: Checkout 代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+        
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 生成日报
+      run: |
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始生成日报..."
+        python scripts/daily_defense_summary.py
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] 日报生成完成"
+        
+    - name: 提交数据更新
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add data/
+        if git diff --staged --quiet; then
+          echo "没有新的数据更新"
+        else
+          git commit -m "📊 Daily report - $(date '+%Y-%m-%d')"
+          git push
+          echo "数据已提交"
+        fi
+        
+    - name: 上传 Excel 报告
+      uses: actions/upload-artifact@v4
+      with:
+        name: daily-report-${{ github.run_id }}
+        path: data/output/*.xlsx
+        retention-days: 30
+        if-no-files-found: warn
+        
+    - name: 发送通知
+      if: env.WECHAT_SCTKEY != '' || env.BARK_PUSH_URL != ''
+      env:
+        WECHAT_SCTKEY: ${{ secrets.WECHAT_SCTKEY }}
+        BARK_PUSH_URL: ${{ secrets.BARK_PUSH_URL }}
+      run: |
+        echo "日报已生成，尝试发送通知..."
+        python scripts/test_notification.py || echo "通知发送失败，但不影响日报生成"
