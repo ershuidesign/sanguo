@@ -1,0 +1,27 @@
+{
+  "observation": "多日同一时段概率偏高：上午",
+  "status": "observing",
+  "recorded_at": "2026-08-03T00:00:00+08:00",
+  "eligible_after": "2026-08-10T00:00:00+08:00",
+  "apply_to_comprehensive_probability": false,
+  "candidate_period": "上午",
+  "scope": "上三城",
+  "source_dates": [
+    "2026-08-01",
+    "2026-08-02",
+    "2026-08-03"
+  ],
+  "daily_top3_hit_rates": {
+    "2026-08-01": 0.178,
+    "2026-08-02": 0.161,
+    "2026-08-03": 0.211
+  },
+  "pooled_hit_rate": 0.183,
+  "baseline_note": "上午连续三天高于或接近其他完整时段，先观察一周，避免小样本直接抬升综合概率。",
+  "planned_review": {
+    "minimum_days": 7,
+    "minimum_samples": 500,
+    "recheck_brier_and_hit_rate": true,
+    "weight_change_requires_review": true
+  }
+}

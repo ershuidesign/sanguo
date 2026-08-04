@@ -1,0 +1,17 @@
+{
+  "last_signature": "洛阳:5:0.3642:极高",
+  "last_sent_at": "2026-08-03T17:51:10",
+  "waiting_for_hit": false,
+  "items": [
+    {
+      "key": "洛阳",
+      "name": "洛阳",
+      "gap": 5,
+      "probability": 0.3641522423871929,
+      "level": "极高",
+      "median_gap": 29.0,
+      "cum5": 0.896064066697152
+    }
+  ],
+  "unlocked_at": "2026-08-03T17:55:08"
+}

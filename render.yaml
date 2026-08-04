@@ -1,0 +1,21 @@
+services:
+  - type: worker
+    name: sanguo-predict-worker
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/render_worker.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sanguo-predict-db
+          property: connectionString
+      - key: WECHAT_SCTKEY
+        sync: false
+      - key: BARK_PUSH_URL
+        sync: false
+      - key: TZ
+        value: Asia/Shanghai
+databases:
+  - name: sanguo-predict-db
+    plan: starter
