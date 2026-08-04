@@ -17,6 +17,7 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
+PROJECT_VERSION = "1.0"
 WEB_HEADER_MAP = {
     "目标": "目标",
     "当前间隔(手)": "当前间隔",
@@ -140,6 +141,47 @@ HTML = """<!doctype html>
     .sub { color: var(--muted); line-height: 1.6; font-size: 14px; }
     .toolbar { display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
     .meta { color: var(--muted); font-size: 13px; }
+    .refresh-progress { width: 100%; margin-top: 12px; }
+    .refresh-countdown {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .refresh-seconds {
+      min-width: 48px;
+      padding: 3px 9px;
+      color: #0369a1;
+      background: rgba(14,165,233,0.10);
+      border: 1px solid rgba(14,165,233,0.30);
+      border-radius: 7px;
+      font-weight: 700;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .refresh-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px rgba(16,185,129,0.85);
+    }
+    .refresh-track {
+      height: 3px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(14,165,233,0.12);
+    }
+    .refresh-bar {
+      width: 100%;
+      height: 100%;
+      transform-origin: left center;
+      background: linear-gradient(90deg, #0ea5e9, #06b6d4);
+      transition: transform 0.25s linear;
+    }
     .card {
       background: var(--panel);
       backdrop-filter: blur(10px);
@@ -186,6 +228,14 @@ HTML = """<!doctype html>
       <div class="toolbar">
         <div class="meta" id="status">等待加载</div>
       </div>
+      <div class="refresh-progress">
+        <div class="refresh-countdown">
+          <span id="countdownLabel">距数据更新还有</span>
+          <span class="refresh-seconds" id="countdownSeconds">--s</span>
+          <span class="refresh-dot"></span>
+        </div>
+        <div class="refresh-track"><div class="refresh-bar" id="refreshBar"></div></div>
+      </div>
     </div>
     <div class="card">
       <div class="table-wrap">
@@ -195,16 +245,24 @@ HTML = """<!doctype html>
         </table>
       </div>
     </div>
-    <div class="footer">本地页面自动读取最新的 `defense_summary_*.xlsx`。</div>
+    <div class="footer">本地页面自动读取最新的 `defense_summary_*.xlsx` · 项目版本 1.0</div>
   </div>
   <script>
     const title = document.getElementById('title');
     const subtitle = document.getElementById('subtitle');
     const statusEl = document.getElementById('status');
+    const countdownLabel = document.getElementById('countdownLabel');
+    const countdownSeconds = document.getElementById('countdownSeconds');
+    const refreshBar = document.getElementById('refreshBar');
     const thead = document.getElementById('thead');
     const tbody = document.getElementById('tbody');
     let autoTimer = null;
+    let countdownTimer = null;
     let autoBusy = false;
+    let nextRefreshAt = null;
+    let lastUpdatedAt = '';
+    const REPORT_WAIT_MS = 20000;
+    const REPORT_POLL_MS = 1000;
     function renderTable(data) {
       thead.innerHTML = '';
       tbody.innerHTML = '';
@@ -237,6 +295,20 @@ HTML = """<!doctype html>
         clearTimeout(autoTimer);
         autoTimer = null;
       }
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+
+    function updateCountdown() {
+      if (!nextRefreshAt) return;
+      const remainingMs = Math.max(0, nextRefreshAt.getTime() - Date.now());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      const progress = Math.max(0, Math.min(1, remainingMs / 60000));
+      countdownLabel.textContent = autoBusy ? '正在获取最新数据' : '距数据更新还有';
+      countdownSeconds.textContent = autoBusy ? '刷新中' : `${remainingSeconds}s`;
+      refreshBar.style.transform = `scaleX(${autoBusy ? 0.04 : progress})`;
     }
 
     function scheduleAutoRefresh() {
@@ -248,15 +320,19 @@ HTML = """<!doctype html>
         next.setMinutes(next.getMinutes() + 1);
       }
       const delay = next.getTime() - now.getTime();
+      nextRefreshAt = next;
+      updateCountdown();
+      countdownTimer = setInterval(updateCountdown, 250);
       autoTimer = setTimeout(async () => {
         if (autoBusy) {
           scheduleAutoRefresh();
           return;
         }
         autoBusy = true;
+        updateCountdown();
         try {
-          // 页面只快速读取后台已生成的日报，绝不因等待采集而卡住。
-          await loadData(false, false, false);
+          // 05秒先读一次；日报通常在09-12秒写完，随后静默追踪新版本。
+          await loadData(false, true);
         } finally {
           autoBusy = false;
           scheduleAutoRefresh();
@@ -270,13 +346,21 @@ HTML = """<!doctype html>
       return res.json();
     }
 
-    async function loadData(reschedule = true) {
+    async function loadData(reschedule = true, waitForNewReport = false) {
       try {
-        const data = await fetchPayload();
+        let data = await fetchPayload();
+        if (waitForNewReport && lastUpdatedAt) {
+          const deadline = Date.now() + REPORT_WAIT_MS;
+          while (!data.error && data.updated_at === lastUpdatedAt && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, REPORT_POLL_MS));
+            data = await fetchPayload();
+          }
+        }
         if (data.error) throw new Error(data.error);
         title.textContent = data.title || '快速预测';
         const refreshed = data.pipeline_updated_at ? ` · 采集完成: ${data.pipeline_updated_at}` : '';
         subtitle.textContent = `来源: ${data.report} · 报表时间: ${data.updated_at}${refreshed}`;
+        lastUpdatedAt = data.updated_at || lastUpdatedAt;
         renderTable(data);
       } catch (err) {
         tbody.innerHTML = '<tr><td class="err" colspan="' + Math.max((thead.children || []).length, 1) + '">' + err.message + '</td></tr>';

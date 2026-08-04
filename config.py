@@ -6,6 +6,9 @@
 import os
 import json
 
+# Project release version. Keep separate from model/data schema versions.
+PROJECT_VERSION = "1.0"
+
 # ============================================================
 # 基础路径
 # ============================================================
