@@ -1,0 +1,7 @@
+numpy
+scipy
+scikit-learn
+openpyxl
+requests
+certifi
+psycopg2-binary

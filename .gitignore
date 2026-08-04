@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+*.log
+*.pid
+*.port
+*.lock
+.DS_Store
+data/notification_config.json
+data/output/*.xlsx
+outputs/

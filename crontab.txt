@@ -1,0 +1,8 @@
+# 斗鱼大话三国 - 定时任务模板
+# 使用方法: crontab -e 然后粘贴以下内容（修改路径）
+
+# 每分钟采集（系统 cron 只能精确到分钟，无法指定 00.5 秒）
+* * * * * cd /path/to/sanguo_codex_package && python scripts/collect_defense_data.py && python scripts/calibrate_collected_data.py && python scripts/daily_defense_summary.py >> logs/minutely_cron.log 2>&1
+
+# 如果必须在每分钟到达 00.5 秒时开始执行，请用本地循环脚本：
+# cd /path/to/sanguo_codex_package && python scripts/minutely_refresh_loop.py
