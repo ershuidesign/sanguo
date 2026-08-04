@@ -167,7 +167,7 @@ def build_alert_candidates(predictions):
             "probability": float(probability),
             "level": level,
             "median_gap": float((pred.get("experience_diagnostics") or {}).get("historical_gap_median", 0.0) or 0.0),
-            "cum5": 1 - (1 - float(probability)) ** 5,
+        "cum3": float((pred.get("experience_diagnostics") or {}).get("three_hand_probability") or 0.0),
         })
     return items
 
@@ -1603,7 +1603,7 @@ def generate_excel_report(summary, cond_probs, predictions, model_results=None, 
     ws1.cell(row=1, column=1, value=f"斗鱼大话三国 - 快速预测 ({date_str})").font = title_font
 
     row = 3
-    headers = ["目标", "当前间隔(手)", "预测概率", "校准概率", "校准前后差值", "经验间隔概率", "相似样本数", "间隔分位", "历史中位间隔", "概率等级", "相对倍率", "5手累计"]
+    headers = ["目标", "当前间隔(手)", "预测概率", "校准概率", "校准前后差值", "经验间隔概率", "相似样本数", "间隔分位", "历史中位间隔", "概率等级", "相对倍率", "3手内概率"]
     for col, h in enumerate(headers, 1):
         cell = ws1.cell(row=row, column=col, value=h)
         cell.font = header_font_white
@@ -1633,17 +1633,15 @@ def generate_excel_report(summary, cond_probs, predictions, model_results=None, 
                 baseline = THEORETICAL_PROB.get(cid[0], 0) if cid else 0.01
             multiplier = comprehensive_prob_cal / baseline if baseline > 0 else 1.0
 
-            # 累计概率: 1-(1-p)^n
-            cum5 = 1 - (1 - comprehensive_prob_cal) ** 5
-
             level = get_prob_level(comprehensive_prob_cal)
 
             delta = pred.get("comprehensive_calibration_delta", comprehensive_prob_cal - comprehensive_prob)
             diagnostics = pred.get("experience_diagnostics", {})
+            three_hand_probability = diagnostics.get("three_hand_probability")
             row_data = [name, gap, comprehensive_prob, comprehensive_prob_cal, delta,
                         pred.get("experience_probability"), diagnostics.get("similar_samples", 0),
                         diagnostics.get("gap_percentile", 0), diagnostics.get("historical_gap_median", 0),
-                        level, multiplier, cum5]
+                        level, multiplier, three_hand_probability]
             for col, val in enumerate(row_data, 1):
                 cell = ws1.cell(row=row, column=col, value=val)
                 cell.alignment = Alignment(horizontal='center')

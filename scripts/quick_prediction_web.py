@@ -24,7 +24,7 @@ WEB_HEADER_MAP = {
     "校准概率": "综合预测概率",
     "概率等级": "概率等级",
     "历史中位间隔": "历史中位间隔",
-    "5手累计": "5手累计",
+    "3手内概率": "3手内概率",
 }
 
 
@@ -83,7 +83,7 @@ def load_quick_prediction():
                 continue
             value = ws.cell(row=r, column=c).value
             display_header = WEB_HEADER_MAP[header]
-            if header in ("预测概率", "校准概率", "校准前后差值", "经验间隔概率", "间隔分位", "5手累计"):
+            if header in ("预测概率", "校准概率", "校准前后差值", "经验间隔概率", "间隔分位", "3手内概率"):
                 row[display_header] = _fmt_percent(value)
             elif header == "相对倍率":
                 row[display_header] = round(float(value), 2) if value is not None else None
