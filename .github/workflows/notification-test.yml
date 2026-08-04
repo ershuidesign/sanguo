@@ -1,0 +1,19 @@
+name: Test notifications
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements.txt
+      - name: Send test notification
+        env:
+          WECHAT_SCTKEY: ${{ secrets.WECHAT_SCTKEY }}
+          BARK_PUSH_URL: ${{ secrets.BARK_PUSH_URL }}
+        run: python scripts/test_notification.py

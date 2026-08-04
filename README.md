@@ -190,6 +190,17 @@ python scripts/daily_defense_summary.py
 python scripts/test_notification.py
 ```
 
+### GitHub Actions 部署
+
+仓库已提供 `.github/workflows/collect.yml`：默认每 5 分钟执行采集、校准、日报和通知，并将新的 `data/` 文件提交回 `main`。GitHub Actions 不能保证每分钟 0.5 秒执行；需要严格每分钟运行时，应使用本机常驻循环或云端 Worker。
+
+在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 添加：
+
+- `WECHAT_SCTKEY`
+- `BARK_PUSH_URL`
+
+保存后可在 `Actions -> Test notifications -> Run workflow` 手动测试双通道通知。`Collect and predict` 也支持 `Run workflow` 手动执行。
+
 执行后会：
 - 给微信 Server酱发送一条测试消息
 - 给 Bark 发送一条测试消息
