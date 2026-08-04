@@ -2,6 +2,8 @@ name: Collect and predict
 
 on:
   schedule:
+    # GitHub uses UTC. The every-5-minute schedule includes 09:50 UTC,
+    # which is 17:50 in Asia/Shanghai, so that daily upload is covered.
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
