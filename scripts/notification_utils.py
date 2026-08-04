@@ -6,6 +6,7 @@ from __future__ import annotations
 import urllib.parse
 import urllib.request
 import ssl
+import time
 
 import os
 import sys
@@ -33,12 +34,17 @@ def send_wechat_alert(title: str, body: str) -> dict:
         data=payload,
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=12, context=_https_context()) as resp:
-            text = resp.read().decode("utf-8", errors="ignore")
-        return {"channel": "wechat", "ok": True, "response": text[:300]}
-    except Exception as exc:
-        return {"channel": "wechat", "ok": False, "reason": str(exc)}
+    last_error = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=8, context=_https_context()) as resp:
+                text = resp.read().decode("utf-8", errors="ignore")
+            return {"channel": "wechat", "ok": True, "response": text[:300], "attempt": attempt + 1}
+        except Exception as exc:
+            last_error = str(exc)
+            if attempt < 2:
+                time.sleep(1)
+    return {"channel": "wechat", "ok": False, "reason": last_error, "attempt": 3}
 
 
 def send_bark_alert(title: str, body: str) -> dict:
@@ -53,12 +59,17 @@ def send_bark_alert(title: str, body: str) -> dict:
     })
     url = f"{BARK_PUSH_URL}?{params}"
     req = urllib.request.Request(url, headers={"User-Agent": "sanguo-alert/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=12, context=_https_context()) as resp:
-            text = resp.read().decode("utf-8", errors="ignore")
-        return {"channel": "bark", "ok": True, "response": text[:300]}
-    except Exception as exc:
-        return {"channel": "bark", "ok": False, "reason": str(exc)}
+    last_error = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=8, context=_https_context()) as resp:
+                text = resp.read().decode("utf-8", errors="ignore")
+            return {"channel": "bark", "ok": True, "response": text[:300], "attempt": attempt + 1}
+        except Exception as exc:
+            last_error = str(exc)
+            if attempt < 2:
+                time.sleep(1)
+    return {"channel": "bark", "ok": False, "reason": last_error, "attempt": 3}
 
 
 def send_dual_channel_alert(title: str, body: str) -> list[dict]:

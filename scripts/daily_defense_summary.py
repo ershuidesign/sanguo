@@ -149,7 +149,9 @@ def get_prob_level(p):
 
 def build_alert_candidates(predictions):
     items = []
-    for key in [TOP3_NAMES[cid] for cid in TOP3_IDS]:
+    # The alert target is the table's first row: total probability of any
+    # top-three city. Do not require an individual city to be extreme.
+    for key in ["any_top3"]:
         pred = predictions.get(key)
         if not pred:
             continue
@@ -162,7 +164,7 @@ def build_alert_candidates(predictions):
             continue
         items.append({
             "key": key,
-            "name": pred.get("name", key),
+            "name": "任一上三城",
             "gap": pred.get("gap", 0),
             "probability": float(probability),
             "level": level,
