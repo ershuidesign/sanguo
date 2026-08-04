@@ -164,6 +164,8 @@ def record_snapshot(records, predictions, now=None):
             "similar_samples": diag.get("similar_samples", 0),
             "gap_percentile": diag.get("gap_percentile", 0.0),
             "historical_gap_median": diag.get("historical_gap_median", 0.0),
+            "three_hand_probability": diag.get("three_hand_probability"),
+            "three_hand_similar_samples": diag.get("three_hand_similar_samples", 0),
             "burst_pattern": diag.get("burst_pattern", False),
             "burst_eligible": diag.get("burst_eligible", False),
             "burst_previous_gap": diag.get("burst_previous_gap"),

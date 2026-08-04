@@ -248,6 +248,11 @@ EXPERIENCE_BLEND_WEIGHT = 0.65
 EXPERIENCE_PRIOR_STRENGTH = 24.0
 EXPERIENCE_MIN_BANDWIDTH = 2.0
 EXPERIENCE_BANDWIDTH_RATIO = 0.18
+# Directly learn the target used by alerts: at least one hit in the next 3 hands.
+THREE_HAND_WINDOW = 3
+THREE_HAND_MIN_SAMPLES = 30
+CHENGDU_THREE_HAND_EXPERIENCE_WEIGHT = 0.70
+CHENGDU_LONG_GAP_PRESSURE_CAP = 0.08
 # Detect a long completed gap followed by another occurrence within a short window.
 BURST_LONG_GAP_THRESHOLD = 40
 BURST_WINDOW_HANDS = 5

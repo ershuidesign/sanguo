@@ -86,6 +86,8 @@ from config import (
     DYNAMIC_WEIGHT_WINDOW, SELF_TEST_TRAIN_RATIO, SELF_TEST_N_BINS,
     EXPERIENCE_BLEND_WEIGHT, EXPERIENCE_PRIOR_STRENGTH,
     EXPERIENCE_MIN_BANDWIDTH, EXPERIENCE_BANDWIDTH_RATIO,
+    THREE_HAND_WINDOW, THREE_HAND_MIN_SAMPLES,
+    CHENGDU_THREE_HAND_EXPERIENCE_WEIGHT, CHENGDU_LONG_GAP_PRESSURE_CAP,
     BURST_LONG_GAP_THRESHOLD, BURST_WINDOW_HANDS, BURST_MIN_SAMPLES, BURST_MIN_LIFT,
     MODEL_UPDATE_TEMPLATE_VERSION,
     FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH, ALERT_STATE_PATH,
@@ -959,6 +961,46 @@ def predict_burst_pattern(model, current_gap, previous_gap=None):
     }
 
 
+def build_three_hand_experience_model(records, category):
+    """Learn the empirical chance of a hit in the next three records by gap."""
+    target_ids = set(TOP3_IDS) if category == "any_top3" else {
+        cid for cid, name in TOP3_NAMES.items() if name == category
+    }
+    sorted_records = sorted(records, key=lambda r: (r[0], r[1]))
+    samples = []
+    for idx in range(len(sorted_records) - THREE_HAND_WINDOW):
+        last_hit = None
+        for j in range(idx - 1, -1, -1):
+            if sorted_records[j][2] in target_ids:
+                last_hit = j
+                break
+        gap = idx if last_hit is None else idx - 1 - last_hit
+        y = int(any(row[2] in target_ids for row in sorted_records[idx:idx + THREE_HAND_WINDOW]))
+        samples.append((gap, y))
+    return {"category": category, "samples": samples, "n_samples": len(samples)}
+
+
+def predict_three_hand_experience(model, current_gap):
+    """Kernel estimate for a three-hand hit, with a safe global prior."""
+    if not model or current_gap is None or not model.get("samples"):
+        return None, {}
+    bandwidth = max(4.0, (current_gap + 1) * 0.20)
+    weighted = total = 0.0
+    effective = 0
+    for gap, outcome in model["samples"]:
+        weight = math.exp(-0.5 * ((gap - current_gap) / bandwidth) ** 2)
+        weighted += weight * outcome
+        total += weight
+        if weight >= 0.05:
+            effective += 1
+    probability = weighted / total if total else 0.0
+    return _clip_probability(probability), {
+        "three_hand_probability": _clip_probability(probability),
+        "three_hand_similar_samples": effective,
+        "three_hand_window": THREE_HAND_WINDOW,
+    }
+
+
 def blend_model_and_experience(model_probability, experience_probability, weight=None):
     if experience_probability is None:
         return _clip_probability(model_probability)
@@ -1206,6 +1248,10 @@ def compute_current_predictions(records, model_results=None, gap_counter=None):
         "any_top3": build_burst_pattern_model(sorted_records, "any_top3"),
         **{TOP3_NAMES[cid]: build_burst_pattern_model(sorted_records, TOP3_NAMES[cid]) for cid in TOP3_IDS},
     }
+    three_hand_models = {
+        "any_top3": build_three_hand_experience_model(sorted_records, "any_top3"),
+        **{TOP3_NAMES[cid]: build_three_hand_experience_model(sorted_records, TOP3_NAMES[cid]) for cid in TOP3_IDS},
+    }
 
     def previous_completed_gap(key):
         target_ids = set(TOP3_IDS) if key == "any_top3" else {
@@ -1218,14 +1264,22 @@ def compute_current_predictions(records, model_results=None, gap_counter=None):
 
     def add_experience(key, raw_model_probability, gap):
         experience_probability, diagnostics = predict_interval_experience(experience_models.get(key), gap)
+        three_hand_probability, three_hand_diagnostics = predict_three_hand_experience(
+            three_hand_models.get(key), gap
+        )
         burst_boost, burst_diagnostics = predict_burst_pattern(
             burst_models.get(key), gap, previous_completed_gap(key)
         )
         diagnostics.update(burst_diagnostics)
+        diagnostics.update(three_hand_diagnostics)
         final_probability = blend_model_and_experience(raw_model_probability, experience_probability, flywheel_weights.get(key))
         comprehensive_probability, comprehensive_diagnostics = compute_comprehensive_probability(
             key, gap, raw_model_probability, experience_probability, diagnostics, flywheel_weights, flywheel_state,
             burst_boost, burst_diagnostics
+        )
+        diagnostics["three_hand_probability"] = three_hand_probability
+        diagnostics["three_hand_weight_candidate"] = (
+            CHENGDU_THREE_HAND_EXPERIENCE_WEIGHT if key == "成都" else 0.0
         )
         return final_probability, experience_probability, diagnostics, comprehensive_probability, comprehensive_diagnostics
 
