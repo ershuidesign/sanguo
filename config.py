@@ -248,6 +248,11 @@ EXPERIENCE_BLEND_WEIGHT = 0.65
 EXPERIENCE_PRIOR_STRENGTH = 24.0
 EXPERIENCE_MIN_BANDWIDTH = 2.0
 EXPERIENCE_BANDWIDTH_RATIO = 0.18
+# Detect a long completed gap followed by another occurrence within a short window.
+BURST_LONG_GAP_THRESHOLD = 40
+BURST_WINDOW_HANDS = 5
+BURST_MIN_SAMPLES = 12
+BURST_MIN_LIFT = 1.05
 MODEL_UPDATE_TEMPLATE_VERSION = 2
 
 # ============================================================

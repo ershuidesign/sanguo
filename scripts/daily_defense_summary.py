@@ -86,6 +86,7 @@ from config import (
     DYNAMIC_WEIGHT_WINDOW, SELF_TEST_TRAIN_RATIO, SELF_TEST_N_BINS,
     EXPERIENCE_BLEND_WEIGHT, EXPERIENCE_PRIOR_STRENGTH,
     EXPERIENCE_MIN_BANDWIDTH, EXPERIENCE_BANDWIDTH_RATIO,
+    BURST_LONG_GAP_THRESHOLD, BURST_WINDOW_HANDS, BURST_MIN_SAMPLES, BURST_MIN_LIFT,
     MODEL_UPDATE_TEMPLATE_VERSION,
     FLYWHEEL_LOG_PATH, FLYWHEEL_SUMMARY_PATH, ALERT_STATE_PATH,
     ALERT_TRIGGER_LEVEL,
@@ -887,6 +888,58 @@ def predict_interval_experience(model, current_gap):
     }
 
 
+def build_burst_pattern_model(records, category):
+    """Learn whether a long completed gap is followed by a short repeat gap."""
+    target_ids = set(TOP3_IDS) if category == "any_top3" else {
+        cid for cid, name in TOP3_NAMES.items() if name == category
+    }
+    sorted_records = sorted(records, key=lambda r: (r[0], r[1]))
+    hit_positions = [i for i, row in enumerate(sorted_records) if row[2] in target_ids]
+    gaps = [hit_positions[i] - hit_positions[i - 1] - 1 for i in range(1, len(hit_positions))]
+    if len(gaps) < 2:
+        return {"category": category, "samples": 0, "eligible": False}
+    base_rate = sum(g <= BURST_WINDOW_HANDS for g in gaps[1:]) / max(len(gaps) - 1, 1)
+    conditioned = [gaps[i + 1] for i, gap in enumerate(gaps[:-1]) if gap >= BURST_LONG_GAP_THRESHOLD]
+    burst_rate = sum(g <= BURST_WINDOW_HANDS for g in conditioned) / len(conditioned) if conditioned else 0.0
+    lift = burst_rate / base_rate if base_rate > 0 else 0.0
+    return {
+        "category": category,
+        "long_gap_threshold": BURST_LONG_GAP_THRESHOLD,
+        "window_hands": BURST_WINDOW_HANDS,
+        "samples": len(conditioned),
+        "hits": sum(g <= BURST_WINDOW_HANDS for g in conditioned),
+        "base_rate": base_rate,
+        "burst_rate": burst_rate,
+        "lift": lift,
+        "eligible": len(conditioned) >= BURST_MIN_SAMPLES and lift >= BURST_MIN_LIFT,
+    }
+
+
+def predict_burst_pattern(model, current_gap, previous_gap=None):
+    """Return a bounded boost and diagnostics for the long-gap burst pattern."""
+    if not model or current_gap is None:
+        return 0.0, {"burst_pattern": False, "burst_eligible": False}
+    # The pattern is only active after the long gap has already produced one hit.
+    active = (
+        int(current_gap) <= int(model.get("window_hands", BURST_WINDOW_HANDS))
+        and previous_gap is not None
+        and int(previous_gap) >= int(model.get("long_gap_threshold", BURST_LONG_GAP_THRESHOLD))
+    )
+    eligible = bool(model.get("eligible")) and active
+    boost = 0.0
+    if eligible:
+        boost = min(0.08, max(0.0, float(model.get("burst_rate", 0.0)) - float(model.get("base_rate", 0.0))) * 0.35)
+    return boost, {
+        "burst_pattern": active,
+        "burst_previous_gap": previous_gap,
+        "burst_eligible": eligible,
+        "burst_samples": int(model.get("samples", 0)),
+        "burst_rate": float(model.get("burst_rate", 0.0)),
+        "burst_lift": float(model.get("lift", 0.0)),
+        "burst_boost": boost,
+    }
+
+
 def blend_model_and_experience(model_probability, experience_probability, weight=None):
     if experience_probability is None:
         return _clip_probability(model_probability)
@@ -922,7 +975,7 @@ def compute_interval_pressure(current_gap, diagnostics, base_rate):
     return max(0.0, pressure)
 
 
-def compute_comprehensive_probability(key, gap, model_probability, experience_probability, diagnostics, flywheel_weights, flywheel_state):
+def compute_comprehensive_probability(key, gap, model_probability, experience_probability, diagnostics, flywheel_weights, flywheel_state, burst_boost=0.0, burst_diagnostics=None):
     """综合模型、间隔经验、长间隔压力和飞轮误差，得到当前展示用总体概率。"""
     if model_probability is None and experience_probability is None:
         return None, {}
@@ -947,7 +1000,7 @@ def compute_comprehensive_probability(key, gap, model_probability, experience_pr
     # 当前间隔越极端，越相信经验侧与压力侧；样本少时抬升幅度更谨慎。
     percentile = float((diagnostics or {}).get("gap_percentile", 0.0) or 0.0)
     experience_anchor = max(base_rate, blended)
-    boosted = experience_anchor + interval_pressure + flywheel_bonus
+    boosted = experience_anchor + interval_pressure + flywheel_bonus + float(burst_boost or 0.0)
     boosted = _clip_probability(boosted)
     confidence = min(0.82, 0.35 + percentile * 0.35 + min(resolved_n, 30) / 100.0)
     comprehensive = _clip_probability((1.0 - confidence) * blended + confidence * boosted)
@@ -960,6 +1013,7 @@ def compute_comprehensive_probability(key, gap, model_probability, experience_pr
         "resolved_samples": resolved_n,
         "mean_error": mean_error,
         "short_gap_adjustment": 0.0,
+        **(burst_diagnostics or {}),
     }
 
 
@@ -1129,12 +1183,30 @@ def compute_current_predictions(records, model_results=None, gap_counter=None):
         "any_top3": build_interval_experience_model(sorted_records, "any_top3"),
         **{TOP3_NAMES[cid]: build_interval_experience_model(sorted_records, TOP3_NAMES[cid]) for cid in TOP3_IDS},
     }
+    burst_models = {
+        "any_top3": build_burst_pattern_model(sorted_records, "any_top3"),
+        **{TOP3_NAMES[cid]: build_burst_pattern_model(sorted_records, TOP3_NAMES[cid]) for cid in TOP3_IDS},
+    }
+
+    def previous_completed_gap(key):
+        target_ids = set(TOP3_IDS) if key == "any_top3" else {
+            cid for cid, name in TOP3_NAMES.items() if name == key
+        }
+        hit_positions = [i for i, row in enumerate(sorted_records) if row[2] in target_ids]
+        if len(hit_positions) < 2:
+            return None
+        return hit_positions[-1] - hit_positions[-2] - 1
 
     def add_experience(key, raw_model_probability, gap):
         experience_probability, diagnostics = predict_interval_experience(experience_models.get(key), gap)
+        burst_boost, burst_diagnostics = predict_burst_pattern(
+            burst_models.get(key), gap, previous_completed_gap(key)
+        )
+        diagnostics.update(burst_diagnostics)
         final_probability = blend_model_and_experience(raw_model_probability, experience_probability, flywheel_weights.get(key))
         comprehensive_probability, comprehensive_diagnostics = compute_comprehensive_probability(
-            key, gap, raw_model_probability, experience_probability, diagnostics, flywheel_weights, flywheel_state
+            key, gap, raw_model_probability, experience_probability, diagnostics, flywheel_weights, flywheel_state,
+            burst_boost, burst_diagnostics
         )
         return final_probability, experience_probability, diagnostics, comprehensive_probability, comprehensive_diagnostics
 
@@ -1964,6 +2036,7 @@ def main():
         experience_template = {}
         for cat in ["any_top3"] + [TOP3_NAMES[cid] for cid in TOP3_IDS]:
             em = build_interval_experience_model(records, cat)
+            bm = build_burst_pattern_model(records, cat)
             if em:
                 experience_template[cat] = {
                     "n_samples": em["n_samples"],
@@ -1975,6 +2048,7 @@ def main():
                     "gap_p25": em["gap_p25"],
                     "gap_p75": em["gap_p75"],
                     "gap_p90": em["gap_p90"],
+                    "burst_pattern": bm,
                 }
         save_json(MODEL_UPDATE_TEMPLATE_PATH, {
             "version": MODEL_UPDATE_TEMPLATE_VERSION,

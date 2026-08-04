@@ -164,6 +164,13 @@ def record_snapshot(records, predictions, now=None):
             "similar_samples": diag.get("similar_samples", 0),
             "gap_percentile": diag.get("gap_percentile", 0.0),
             "historical_gap_median": diag.get("historical_gap_median", 0.0),
+            "burst_pattern": diag.get("burst_pattern", False),
+            "burst_eligible": diag.get("burst_eligible", False),
+            "burst_previous_gap": diag.get("burst_previous_gap"),
+            "burst_samples": diag.get("burst_samples", 0),
+            "burst_rate": diag.get("burst_rate", 0.0),
+            "burst_lift": diag.get("burst_lift", 0.0),
+            "burst_boost": diag.get("burst_boost", 0.0),
             "gap_before_prediction": _gap_before(records, cursor, city_id),
         }
     items.append(snapshot)
