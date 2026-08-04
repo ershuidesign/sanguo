@@ -2,7 +2,7 @@ name: 斗鱼大话三国 - 定时采集与日报
 
 on:
   schedule:
-    # 每小时第5分钟采集数据（UTC时间，北京时间 = UTC+8）
+    # 每小时第5分钟采集数据
     - cron: '5 * * * *'
     # 每天北京时间23:00生成日报（UTC 15:00）
     - cron: '0 15 * * *'
@@ -25,7 +25,6 @@ jobs:
   collect-data:
     name: 数据采集
     runs-on: ubuntu-latest
-    # 定时采集或手动触发采集
     if: github.event.schedule == '5 * * * *' || github.event.inputs.task_type == 'collect'
     
     steps:
@@ -46,6 +45,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: 确保数据目录存在
+      run: |
+        mkdir -p data/raw_records
+        mkdir -p data/daily_summary
+        mkdir -p data/output
+        touch data/raw_records/.gitkeep
+        touch data/daily_summary/.gitkeep
+        touch data/output/.gitkeep
+        
     - name: 执行数据采集
       run: |
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始采集数据..."
@@ -57,11 +65,11 @@ jobs:
         git config user.name "GitHub Actions Bot"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add data/
-        if git diff --staged --quiet; then
+        if git diff --staged --quiet 2>/dev/null; then
           echo "没有新的数据更新"
         else
-          git commit -m "🤖 Auto collect data - $(date '+%Y-%m-%d %H:%M')"
-          git push
+          git commit -m "🤖 Auto collect data - $(date '+%Y-%m-%d %H:%M')" || echo "无内容可提交"
+          git push || echo "推送跳过（可能无变更）"
           echo "数据已提交"
         fi
         
@@ -78,7 +86,6 @@ jobs:
   daily-report:
     name: 每日日报
     runs-on: ubuntu-latest
-    # 定时日报或手动触发日报
     if: github.event.schedule == '0 15 * * *' || github.event.inputs.task_type == 'report'
     
     steps:
@@ -99,6 +106,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: 确保数据目录存在
+      run: |
+        mkdir -p data/raw_records
+        mkdir -p data/daily_summary
+        mkdir -p data/output
+        touch data/raw_records/.gitkeep
+        touch data/daily_summary/.gitkeep
+        touch data/output/.gitkeep
+        
     - name: 生成日报
       run: |
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始生成日报..."
@@ -110,11 +126,11 @@ jobs:
         git config user.name "GitHub Actions Bot"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add data/
-        if git diff --staged --quiet; then
+        if git diff --staged --quiet 2>/dev/null; then
           echo "没有新的数据更新"
         else
-          git commit -m "📊 Daily report - $(date '+%Y-%m-%d')"
-          git push
+          git commit -m "📊 Daily report - $(date '+%Y-%m-%d')" || echo "无内容可提交"
+          git push || echo "推送跳过（可能无变更）"
           echo "数据已提交"
         fi
         
