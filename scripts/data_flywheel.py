@@ -147,7 +147,23 @@ def record_snapshot(records, predictions, now=None):
         summary = _build_summary(items, now)
         _write_summary(summary)
         return summary
-    snapshot = {"snapshot_id": now.isoformat(timespec="milliseconds"), "created_at": now.isoformat(timespec="seconds"), "record_cursor": cursor, "status": "pending", "cities": {}}
+    any_pred = predictions.get("any_top3", {}) or {}
+    any_diag = any_pred.get("experience_diagnostics", {}) or {}
+    snapshot = {
+        "snapshot_id": now.isoformat(timespec="milliseconds"),
+        "created_at": now.isoformat(timespec="seconds"),
+        "record_cursor": cursor,
+        "status": "pending",
+        "any_top3": {
+            "probability": any_pred.get("probability"),
+            "final_probability": any_pred.get("comprehensive_probability_calibrated",
+                                               any_pred.get("comprehensive_probability",
+                                                            any_pred.get("probability_calibrated",
+                                                                         any_pred.get("probability")))),
+            "three_hand_probability": any_diag.get("three_hand_probability"),
+        },
+        "cities": {},
+    }
     for city_id in TOP3_IDS:
         city = TOP3_NAMES[city_id]
         pred = predictions.get(city, {})
@@ -166,6 +182,10 @@ def record_snapshot(records, predictions, now=None):
             "historical_gap_median": diag.get("historical_gap_median", 0.0),
             "three_hand_probability": diag.get("three_hand_probability"),
             "three_hand_similar_samples": diag.get("three_hand_similar_samples", 0),
+            "total_extreme_context_active": diag.get("total_extreme_context_active", False),
+            "total_extreme_context_probability": diag.get("total_extreme_context_probability"),
+            "total_extreme_context_lift": diag.get("total_extreme_context_lift"),
+            "total_extreme_context_samples": diag.get("total_extreme_context_samples", 0),
             "burst_pattern": diag.get("burst_pattern", False),
             "burst_eligible": diag.get("burst_eligible", False),
             "burst_previous_gap": diag.get("burst_previous_gap"),

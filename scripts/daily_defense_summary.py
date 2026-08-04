@@ -1001,6 +1001,72 @@ def predict_three_hand_experience(model, current_gap):
     }
 
 
+def build_extreme_context_model(flywheel_items, records):
+    """Learn three-hand outcomes after a historical top-three extreme state."""
+    sorted_records = sorted(records, key=lambda r: (r[0], r[1]))
+    contexts = {"extreme": [], "normal": []}
+    by_trigger = defaultdict(list)
+    for item in flywheel_items or []:
+        cursor = int(item.get("record_cursor", 0) or 0)
+        future = sorted_records[cursor:cursor + THREE_HAND_WINDOW]
+        if len(future) < THREE_HAND_WINDOW:
+            continue
+        total = item.get("any_top3")
+        if not total:
+            # Older snapshots did not persist the table total row.
+            continue
+        total_probability = float(total.get("final_probability", total.get("probability", 0.0)) or 0.0)
+        context = "extreme" if total_probability >= 0.35 else "normal"
+        contexts[context].append(future)
+
+    def rates(samples):
+        output = {}
+        for city in [TOP3_NAMES[cid] for cid in TOP3_IDS]:
+            output[city] = {
+                "samples": len(samples),
+                "hits": sum(any(row[3] == city for row in future) for future in samples),
+                "probability": sum(any(row[3] == city for row in future) for future in samples) / len(samples)
+                if samples else 0.0,
+            }
+        return output
+
+    normal_rates = rates(contexts["normal"])
+    extreme_rates = rates(contexts["extreme"])
+    for city in normal_rates:
+        base = normal_rates[city]["probability"]
+        current = extreme_rates[city]["probability"]
+        extreme_rates[city]["lift"] = current / base if base else 0.0
+    return {
+        "window_hands": THREE_HAND_WINDOW,
+        "extreme_samples": len(contexts["extreme"]),
+        "normal_samples": len(contexts["normal"]),
+        "normal": normal_rates,
+        "extreme": extreme_rates,
+        "by_trigger": {},
+    }
+
+
+def apply_extreme_context_diagnostics(predictions, context_model):
+    """Attach conditional three-hand rates without changing the base probability."""
+    if not context_model:
+        return predictions
+    total_probability = float((predictions.get("any_top3") or {}).get(
+        "comprehensive_probability_calibrated",
+        (predictions.get("any_top3") or {}).get("comprehensive_probability", 0.0),
+    ) or 0.0)
+    total_extreme = total_probability >= 0.35
+    for city, pred in predictions.items():
+        if city not in TOP3_NAMES.values():
+            continue
+        diagnostics = pred.setdefault("experience_diagnostics", {})
+        metric = (context_model.get("extreme") or {}).get(city) if total_extreme else None
+        diagnostics["total_extreme_context_active"] = total_extreme
+        diagnostics["total_extreme_context_probability"] = metric.get("probability") if metric else None
+        diagnostics["total_extreme_context_lift"] = metric.get("lift") if metric else None
+        diagnostics["total_extreme_context_samples"] = metric.get("samples", 0) if metric else 0
+    return predictions
+
+
 def blend_model_and_experience(model_probability, experience_probability, weight=None):
     if experience_probability is None:
         return _clip_probability(model_probability)
@@ -2144,11 +2210,24 @@ def main():
         calibration_model = fit_probability_calibrators(backtest)
         predictions = calibrate_predictions(predictions, calibration_model)
 
+        # Learn how the other top-three cities behave after an extreme state.
+        historical_flywheel_items = []
+        if os.path.exists(FLYWHEEL_LOG_PATH):
+            with open(FLYWHEEL_LOG_PATH, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        historical_flywheel_items.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+        extreme_context_model = build_extreme_context_model(historical_flywheel_items, records)
+        predictions = apply_extreme_context_diagnostics(predictions, extreme_context_model)
+
         # 保存本次预测，等待下一手真实记录结算。
         flywheel_summary = record_snapshot(records, predictions)
         template_state = load_json(MODEL_UPDATE_TEMPLATE_PATH, {})
         template_state["flywheel_resolved_samples"] = flywheel_summary.get("resolved_samples", 0)
         template_state["flywheel_weights"] = flywheel_summary.get("weights", {})
+        template_state["extreme_context_model"] = extreme_context_model
         save_json(MODEL_UPDATE_TEMPLATE_PATH, template_state)
         flywheel_items = []
         if os.path.exists(FLYWHEEL_LOG_PATH):
