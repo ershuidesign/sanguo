@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "updated_at": "2026-08-12T07:53:26",
+  "updated_at": "2026-08-12T09:26:37",
   "data_source": "all_records_before_current_prediction",
   "learning_template": "interval_similarity_experience_plus_fusion_blend_then_time_series_calibration",
   "experience_blend_weight": 0.65,
   "experience_prior_strength": 24.0,
   "models": {
     "any_top3": {
-      "n_samples": 14836,
-      "n_positive": 2279,
-      "base_rate": 0.15361283364788353,
-      "completed_intervals": 2279,
-      "gap_mean": 5.505923650724002,
+      "n_samples": 14929,
+      "n_positive": 2296,
+      "base_rate": 0.15379462790541898,
+      "completed_intervals": 2296,
+      "gap_mean": 5.4991289198606275,
       "gap_median": 4.0,
       "gap_p25": 1.0,
       "gap_p75": 8.0,
@@ -22,16 +22,16 @@
         "window_hands": 5,
         "samples": 3,
         "hits": 0,
-        "base_rate": 0.6294995610184372,
+        "base_rate": 0.6313725490196078,
         "burst_rate": 0.0,
         "lift": 0.0,
         "eligible": false
       }
     },
     "洛阳": {
-      "n_samples": 14768,
+      "n_samples": 14861,
       "n_positive": 490,
-      "base_rate": 0.03317984832069339,
+      "base_rate": 0.03297220913801225,
       "completed_intervals": 490,
       "gap_mean": 28.973469387755102,
       "gap_median": 21.0,
@@ -51,11 +51,11 @@
       }
     },
     "成都": {
-      "n_samples": 14836,
-      "n_positive": 762,
-      "base_rate": 0.05136155297923969,
-      "completed_intervals": 762,
-      "gap_mean": 18.45800524934383,
+      "n_samples": 14929,
+      "n_positive": 769,
+      "base_rate": 0.05151048295264251,
+      "completed_intervals": 769,
+      "gap_mean": 18.39011703511053,
       "gap_median": 14.0,
       "gap_p25": 5.0,
       "gap_p75": 25.0,
@@ -66,18 +66,18 @@
         "window_hands": 5,
         "samples": 93,
         "hits": 24,
-        "base_rate": 0.26412614980289095,
+        "base_rate": 0.265625,
         "burst_rate": 0.25806451612903225,
-        "lift": 0.9770502327074305,
+        "lift": 0.9715370018975332,
         "eligible": false
       }
     },
     "建业": {
-      "n_samples": 14826,
-      "n_positive": 1025,
-      "base_rate": 0.069135302846351,
-      "completed_intervals": 1025,
-      "gap_mean": 13.440975609756098,
+      "n_samples": 14919,
+      "n_positive": 1035,
+      "base_rate": 0.06937462296400564,
+      "completed_intervals": 1035,
+      "gap_mean": 13.407729468599033,
       "gap_median": 9.0,
       "gap_p25": 4.0,
       "gap_p75": 18.0,
@@ -86,24 +86,24 @@
         "category": "建业",
         "long_gap_threshold": 40,
         "window_hands": 5,
-        "samples": 52,
+        "samples": 53,
         "hits": 20,
-        "base_rate": 0.341796875,
-        "burst_rate": 0.38461538461538464,
-        "lift": 1.1252747252747253,
+        "base_rate": 0.344294003868472,
+        "burst_rate": 0.37735849056603776,
+        "lift": 1.0960356158575366,
         "eligible": true
       }
     }
   },
-  "flywheel_resolved_samples": 1776,
+  "flywheel_resolved_samples": 1779,
   "flywheel_weights": {
-    "洛阳": 0.6326,
+    "洛阳": 0.6325,
     "成都": 0.6242,
-    "建业": 0.6503
+    "建业": 0.6502
   },
   "extreme_context_model": {
     "window_hands": 3,
-    "extreme_samples": 39,
+    "extreme_samples": 40,
     "normal_samples": 174,
     "normal": {
       "洛阳": {
@@ -124,22 +124,22 @@
     },
     "extreme": {
       "洛阳": {
-        "samples": 39,
+        "samples": 40,
         "hits": 3,
-        "probability": 0.07692307692307693,
-        "lift": 0.7873303167420814
+        "probability": 0.075,
+        "lift": 0.7676470588235293
       },
       "成都": {
-        "samples": 39,
+        "samples": 40,
         "hits": 10,
-        "probability": 0.2564102564102564,
-        "lift": 2.124542124542124
+        "probability": 0.25,
+        "lift": 2.071428571428571
       },
       "建业": {
-        "samples": 39,
+        "samples": 40,
         "hits": 16,
-        "probability": 0.41025641025641024,
-        "lift": 1.456828885400314
+        "probability": 0.4,
+        "lift": 1.4204081632653063
       }
     },
     "by_trigger": {}
