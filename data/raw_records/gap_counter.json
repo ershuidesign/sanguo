@@ -1,14 +1,14 @@
 {
   "1": {
     "last_seen_time": "2026-08-16 16:41",
-    "gap_hands": 6
+    "gap_hands": 32
   },
   "2": {
     "last_seen_time": "2026-08-16 16:18",
-    "gap_hands": 29
+    "gap_hands": 55
   },
   "3": {
-    "last_seen_time": "2026-08-16 16:45",
-    "gap_hands": 2
+    "last_seen_time": "2026-08-16 17:00",
+    "gap_hands": 13
   }
 }

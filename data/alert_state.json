@@ -1,17 +1,16 @@
 {
-  "last_signature": "any_top3:12:0.5291:极高",
-  "last_sent_at": "2026-08-16T15:09:38",
-  "waiting_for_hit": false,
+  "last_signature": "any_top3:13:0.4062:极高",
+  "last_sent_at": "2026-08-16T17:17:06",
+  "waiting_for_hit": true,
   "items": [
     {
       "key": "any_top3",
       "name": "任一上三城",
-      "gap": 12,
-      "probability": 0.5291297266674038,
+      "gap": 13,
+      "probability": 0.40618807539427193,
       "level": "极高",
       "median_gap": 4.0,
-      "cum3": 0.39977276907699394
+      "cum3": 0.4006547394603314
     }
-  ],
-  "unlocked_at": "2026-08-16T15:46:12"
+  ]
 }
