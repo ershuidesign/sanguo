@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "updated_at": "2026-08-18T05:38:38",
+  "updated_at": "2026-08-18T06:01:00",
   "data_source": "all_records_before_current_prediction",
   "learning_template": "interval_similarity_experience_plus_fusion_blend_then_time_series_calibration",
   "experience_blend_weight": 0.65,
   "experience_prior_strength": 24.0,
   "models": {
     "any_top3": {
-      "n_samples": 23338,
-      "n_positive": 3543,
-      "base_rate": 0.15181249464392835,
-      "completed_intervals": 3543,
-      "gap_mean": 5.586790855207451,
+      "n_samples": 23360,
+      "n_positive": 3546,
+      "base_rate": 0.15179794520547946,
+      "completed_intervals": 3546,
+      "gap_mean": 5.585448392554992,
       "gap_median": 4.0,
       "gap_p25": 1.0,
       "gap_p75": 8.0,
@@ -22,16 +22,16 @@
         "window_hands": 5,
         "samples": 5,
         "hits": 1,
-        "base_rate": 0.6247882552230378,
+        "base_rate": 0.6248236953455572,
         "burst_rate": 0.2,
-        "lift": 0.3201084500677813,
+        "lift": 0.3200902934537246,
         "eligible": false
       }
     },
     "洛阳": {
-      "n_samples": 23270,
+      "n_samples": 23292,
       "n_positive": 750,
-      "base_rate": 0.03223033949290933,
+      "base_rate": 0.032199896960329724,
       "completed_intervals": 750,
       "gap_mean": 29.994666666666667,
       "gap_median": 22.0,
@@ -51,9 +51,9 @@
       }
     },
     "成都": {
-      "n_samples": 23338,
+      "n_samples": 23360,
       "n_positive": 1204,
-      "base_rate": 0.05158968206358728,
+      "base_rate": 0.05154109589041096,
       "completed_intervals": 1204,
       "gap_mean": 18.382890365448507,
       "gap_median": 13.0,
@@ -73,29 +73,29 @@
       }
     },
     "建业": {
-      "n_samples": 23328,
-      "n_positive": 1587,
-      "base_rate": 0.06802983539094651,
-      "completed_intervals": 1587,
-      "gap_mean": 13.698172652804033,
+      "n_samples": 23350,
+      "n_positive": 1590,
+      "base_rate": 0.06809421841541756,
+      "completed_intervals": 1590,
+      "gap_mean": 13.680503144654088,
       "gap_median": 9.0,
       "gap_p25": 4.0,
       "gap_p75": 19.0,
-      "gap_p90": 33.40000000000009,
+      "gap_p90": 33.100000000000136,
       "burst_pattern": {
         "category": "建业",
         "long_gap_threshold": 40,
         "window_hands": 5,
         "samples": 92,
         "hits": 37,
-        "base_rate": 0.34615384615384615,
+        "base_rate": 0.34675896790434235,
         "burst_rate": 0.40217391304347827,
-        "lift": 1.1618357487922706,
+        "lift": 1.159808253767853,
         "eligible": true
       }
     }
   },
-  "flywheel_resolved_samples": 2349,
+  "flywheel_resolved_samples": 2352,
   "flywheel_weights": {
     "洛阳": 0.628,
     "成都": 0.6263,
@@ -104,22 +104,22 @@
   "extreme_context_model": {
     "window_hands": 3,
     "extreme_samples": 84,
-    "normal_samples": 320,
+    "normal_samples": 321,
     "normal": {
       "洛阳": {
-        "samples": 320,
+        "samples": 321,
         "hits": 33,
-        "probability": 0.103125
+        "probability": 0.102803738317757
       },
       "成都": {
-        "samples": 320,
+        "samples": 321,
         "hits": 41,
-        "probability": 0.128125
+        "probability": 0.1277258566978193
       },
       "建业": {
-        "samples": 320,
+        "samples": 321,
         "hits": 74,
-        "probability": 0.23125
+        "probability": 0.23052959501557632
       }
     },
     "extreme": {
@@ -127,19 +127,19 @@
         "samples": 84,
         "hits": 8,
         "probability": 0.09523809523809523,
-        "lift": 0.9235209235209235
+        "lift": 0.9264069264069263
       },
       "成都": {
         "samples": 84,
         "hits": 13,
         "probability": 0.15476190476190477,
-        "lift": 1.207897793263647
+        "lift": 1.211672473867596
       },
       "建业": {
         "samples": 84,
         "hits": 20,
         "probability": 0.23809523809523808,
-        "lift": 1.0296010296010294
+        "lift": 1.0328185328185329
       }
     },
     "by_trigger": {}
