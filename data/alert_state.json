@@ -1,7 +1,7 @@
 {
   "last_signature": "any_top3:11:0.3510:极高",
   "last_sent_at": "2026-08-19T19:17:41",
-  "waiting_for_hit": true,
+  "waiting_for_hit": false,
   "items": [
     {
       "key": "any_top3",
@@ -12,5 +12,6 @@
       "median_gap": 4.0,
       "cum3": 0.397106211100459
     }
-  ]
+  ],
+  "unlocked_at": "2026-08-19T19:48:21"
 }
