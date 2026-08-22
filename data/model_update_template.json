@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "updated_at": "2026-08-23T01:59:31",
+  "updated_at": "2026-08-23T02:33:32",
   "data_source": "all_records_before_current_prediction",
   "learning_template": "interval_similarity_experience_plus_fusion_blend_then_time_series_calibration",
   "experience_blend_weight": 0.65,
   "experience_prior_strength": 24.0,
   "models": {
     "any_top3": {
-      "n_samples": 30317,
-      "n_positive": 4550,
-      "base_rate": 0.1500808127453244,
-      "completed_intervals": 4550,
-      "gap_mean": 5.662417582417582,
+      "n_samples": 30353,
+      "n_positive": 4552,
+      "base_rate": 0.1499687016110434,
+      "completed_intervals": 4552,
+      "gap_mean": 5.667618629173989,
       "gap_median": 4.0,
       "gap_p25": 1.0,
       "gap_p75": 8.0,
@@ -22,18 +22,18 @@
         "window_hands": 5,
         "samples": 8,
         "hits": 3,
-        "base_rate": 0.6238733787645636,
+        "base_rate": 0.6238189408921117,
         "burst_rate": 0.375,
-        "lift": 0.6010835095137421,
+        "lift": 0.6011359633673828,
         "eligible": false
       }
     },
     "洛阳": {
-      "n_samples": 30249,
-      "n_positive": 984,
-      "base_rate": 0.032530000991768324,
-      "completed_intervals": 984,
-      "gap_mean": 29.66260162601626,
+      "n_samples": 30285,
+      "n_positive": 986,
+      "base_rate": 0.032557371636123496,
+      "completed_intervals": 986,
+      "gap_mean": 29.712981744421906,
       "gap_median": 21.0,
       "gap_p25": 8.0,
       "gap_p75": 41.0,
@@ -42,18 +42,18 @@
         "category": "洛阳",
         "long_gap_threshold": 40,
         "window_hands": 5,
-        "samples": 257,
-        "hits": 48,
-        "base_rate": 0.17395727365208546,
-        "burst_rate": 0.1867704280155642,
-        "lift": 1.0736569049081848,
+        "samples": 259,
+        "hits": 49,
+        "base_rate": 0.1746192893401015,
+        "burst_rate": 0.1891891891891892,
+        "lift": 1.0834380892520428,
         "eligible": true
       }
     },
     "成都": {
-      "n_samples": 30317,
+      "n_samples": 30353,
       "n_positive": 1506,
-      "base_rate": 0.04967509977900188,
+      "base_rate": 0.049616182914374196,
       "completed_intervals": 1506,
       "gap_mean": 19.128818061088978,
       "gap_median": 14.0,
@@ -73,9 +73,9 @@
       }
     },
     "建业": {
-      "n_samples": 30307,
+      "n_samples": 30343,
       "n_positive": 2058,
-      "base_rate": 0.0679051044313195,
+      "base_rate": 0.06782453943248855,
       "completed_intervals": 2058,
       "gap_mean": 13.720116618075801,
       "gap_median": 9.0,
@@ -95,31 +95,31 @@
       }
     }
   },
-  "flywheel_resolved_samples": 2910,
+  "flywheel_resolved_samples": 2913,
   "flywheel_weights": {
-    "洛阳": 0.6269,
+    "洛阳": 0.6268,
     "成都": 0.6192,
     "建业": 0.6329
   },
   "extreme_context_model": {
     "window_hands": 3,
     "extreme_samples": 91,
-    "normal_samples": 500,
+    "normal_samples": 501,
     "normal": {
       "洛阳": {
-        "samples": 500,
+        "samples": 501,
         "hits": 49,
-        "probability": 0.098
+        "probability": 0.09780439121756487
       },
       "成都": {
-        "samples": 500,
+        "samples": 501,
         "hits": 61,
-        "probability": 0.122
+        "probability": 0.1217564870259481
       },
       "建业": {
-        "samples": 500,
+        "samples": 501,
         "hits": 108,
-        "probability": 0.216
+        "probability": 0.2155688622754491
       }
     },
     "extreme": {
@@ -127,19 +127,19 @@
         "samples": 91,
         "hits": 9,
         "probability": 0.0989010989010989,
-        "lift": 1.009194886745907
+        "lift": 1.0112132765193989
       },
       "成都": {
         "samples": 91,
         "hits": 15,
         "probability": 0.16483516483516483,
-        "lift": 1.3511079084849578
+        "lift": 1.3538101243019276
       },
       "建业": {
         "samples": 91,
         "hits": 21,
         "probability": 0.23076923076923078,
-        "lift": 1.0683760683760684
+        "lift": 1.0705128205128205
       }
     },
     "by_trigger": {}
