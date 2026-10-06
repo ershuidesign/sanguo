@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "updated_at": "2026-10-02T09:44:15",
+  "updated_at": "2026-10-06T14:48:48",
   "data_source": "all_records_before_current_prediction",
   "learning_template": "interval_similarity_experience_plus_fusion_blend_then_time_series_calibration",
   "experience_blend_weight": 0.65,
   "experience_prior_strength": 24.0,
   "models": {
     "any_top3": {
-      "n_samples": 46997,
-      "n_positive": 7036,
-      "base_rate": 0.14971168372449306,
-      "completed_intervals": 7036,
-      "gap_mean": 5.6789368959636155,
+      "n_samples": 47477,
+      "n_positive": 7118,
+      "base_rate": 0.1499252269519978,
+      "completed_intervals": 7118,
+      "gap_mean": 5.669991570665918,
       "gap_median": 4.0,
       "gap_p25": 1.0,
       "gap_p75": 8.0,
@@ -22,40 +22,40 @@
         "window_hands": 5,
         "samples": 10,
         "hits": 4,
-        "base_rate": 0.6210376687988628,
+        "base_rate": 0.621188703105241,
         "burst_rate": 0.4,
-        "lift": 0.644083314259556,
+        "lift": 0.6439267134132549,
         "eligible": false
       }
     },
     "洛阳": {
-      "n_samples": 46929,
-      "n_positive": 1536,
-      "base_rate": 0.032730294700505015,
-      "completed_intervals": 1536,
-      "gap_mean": 29.550130208333332,
+      "n_samples": 47409,
+      "n_positive": 1553,
+      "base_rate": 0.03275749330295935,
+      "completed_intervals": 1553,
+      "gap_mean": 29.50482936252415,
       "gap_median": 21.0,
       "gap_p25": 8.0,
       "gap_p75": 41.0,
-      "gap_p90": 69.0,
+      "gap_p90": 68.79999999999995,
       "burst_pattern": {
         "category": "洛阳",
         "long_gap_threshold": 40,
         "window_hands": 5,
-        "samples": 405,
+        "samples": 408,
         "hits": 74,
-        "base_rate": 0.1752442996742671,
-        "burst_rate": 0.18271604938271604,
-        "lift": 1.0426361925742347,
+        "base_rate": 0.17461340206185566,
+        "burst_rate": 0.18137254901960784,
+        "lift": 1.038709210621518,
         "eligible": false
       }
     },
     "成都": {
-      "n_samples": 46997,
-      "n_positive": 2331,
-      "base_rate": 0.04959891056875971,
-      "completed_intervals": 2331,
-      "gap_mean": 19.125268125268125,
+      "n_samples": 47477,
+      "n_positive": 2356,
+      "base_rate": 0.04962402847694673,
+      "completed_intervals": 2356,
+      "gap_mean": 19.139643463497453,
       "gap_median": 14.0,
       "gap_p25": 5.0,
       "gap_p75": 26.0,
@@ -64,20 +64,20 @@
         "category": "成都",
         "long_gap_threshold": 40,
         "window_hands": 5,
-        "samples": 296,
-        "hits": 73,
-        "base_rate": 0.2592274678111588,
-        "burst_rate": 0.24662162162162163,
-        "lift": 0.9513714873814212,
+        "samples": 298,
+        "hits": 74,
+        "base_rate": 0.2585987261146497,
+        "burst_rate": 0.2483221476510067,
+        "lift": 0.9602605217046318,
         "eligible": false
       }
     },
     "建业": {
-      "n_samples": 46987,
-      "n_positive": 3167,
-      "base_rate": 0.06740162172515803,
-      "completed_intervals": 3167,
-      "gap_mean": 13.832017682349226,
+      "n_samples": 47467,
+      "n_positive": 3207,
+      "base_rate": 0.06756272778983294,
+      "completed_intervals": 3207,
+      "gap_mean": 13.801060180854382,
       "gap_median": 9.0,
       "gap_p25": 4.0,
       "gap_p75": 19.0,
@@ -86,40 +86,40 @@
         "category": "建业",
         "long_gap_threshold": 40,
         "window_hands": 5,
-        "samples": 193,
+        "samples": 194,
         "hits": 69,
-        "base_rate": 0.34301958307012004,
-        "burst_rate": 0.35751295336787564,
-        "lift": 1.0422523115678584,
+        "base_rate": 0.3437305053025577,
+        "burst_rate": 0.3556701030927835,
+        "lift": 1.0347353452953394,
         "eligible": false
       }
     }
   },
-  "flywheel_resolved_samples": 3387,
+  "flywheel_resolved_samples": 3390,
   "flywheel_weights": {
     "洛阳": 0.63,
-    "成都": 0.6176,
+    "成都": 0.6174,
     "建业": 0.6318
   },
   "extreme_context_model": {
     "window_hands": 3,
     "extreme_samples": 91,
-    "normal_samples": 659,
+    "normal_samples": 660,
     "normal": {
       "洛阳": {
-        "samples": 659,
+        "samples": 660,
         "hits": 72,
-        "probability": 0.10925644916540213
+        "probability": 0.10909090909090909
       },
       "成都": {
-        "samples": 659,
+        "samples": 660,
         "hits": 78,
-        "probability": 0.11836115326251896
+        "probability": 0.11818181818181818
       },
       "建业": {
-        "samples": 659,
-        "hits": 133,
-        "probability": 0.20182094081942337
+        "samples": 660,
+        "hits": 134,
+        "probability": 0.20303030303030303
       }
     },
     "extreme": {
@@ -127,19 +127,19 @@
         "samples": 91,
         "hits": 9,
         "probability": 0.0989010989010989,
-        "lift": 0.9052197802197801
+        "lift": 0.9065934065934066
       },
       "成都": {
         "samples": 91,
         "hits": 15,
         "probability": 0.16483516483516483,
-        "lift": 1.3926458157227388
+        "lift": 1.3947590870667794
       },
       "建业": {
         "samples": 91,
         "hits": 21,
         "probability": 0.23076923076923078,
-        "lift": 1.1434355118565647
+        "lift": 1.1366245694603905
       }
     },
     "by_trigger": {}
